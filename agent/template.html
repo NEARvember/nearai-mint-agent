@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+        async function nearCall(transactions) {
+            return new Promise((resolve, reject) => {
+                const messageListener = function (event) {
+                    if (
+                        event.data &&
+                        event.data.action === "near_send_transactions_response"
+                    ) {
+                        const response = event.data
+                        console.log("Received response:", response)
+
+                        if (response.result) {
+                            resolve(response.result)
+                        } else {
+                            reject(new Error("No result in response"))
+                        }
+
+                        window.removeEventListener("message", messageListener)
+                    }
+                }
+
+                window.addEventListener("message", messageListener, false)
+
+                const txs = transactions.map(({ recipient, method, params, gas, deposit }) => {
+                    let real_gas = (Number(gas || "300") * 10 ** 12).toFixed(0)
+                    if (!real_gas) {
+                        real_gas = "300000000000000"
+                    }
+
+                    return {
+                        recipient,
+                        method,
+                        params,
+                        real_gas,
+                        deposit,
+                    }
+                })
+                console.log("nearCall", JSON.stringify(txs))
+
+                const callData = {
+                    transactions: txs.map(tx => ({
+                        receiverId: tx.recipient,
+                        actions: [
+                            {
+                                type: "FunctionCall",
+                                params: {
+                                    methodName: tx.method,
+                                    args: tx.params,
+                                    gas: tx.real_gas,
+                                    deposit: tx.deposit,
+                                },
+                            },
+                        ]
+                    })),
+                }
+
+                const message = {
+                    action: "near_send_transactions",
+                    data: callData,
+                }
+
+                window.parent.postMessage(message, "*")
+            })
+        }
+
+        function stake() {
+            document.getElementById("stake").disabled = true;
+            document.getElementById("stake").style.backgroundColor = "#624f00";
+            document.getElementById("stake").style.color = "#888888";
+            document.getElementById("stake").style.border = "1px solid #999999";
+            document.getElementById("claim").style.display = "block";
+            document.getElementById("stake").innerText = "Staking ...";
+
+            nearCall([
+                {
+                    recipient: "nftstaking.jumpfinance.near",
+                    method: "storage_deposit",
+                    params: {
+                        registration_only: true,
+                    },
+                    deposit: "250000000000000000000000" // 0.25 NEAR
+                },
+                {
+                    recipient: "nearvember-nft.near",
+                    method: "nft_transfer_call",
+                    params: {
+                        receiver_id: "nftstaking.jumpfinance.near",
+                        token_id: "{{TOKEN_ID}}",
+                        approval_id: null,
+                        memo: null,
+                        msg: "{\"type\":\"Stake\"}"
+                    },
+                    deposit: "1",
+                },
+            ]).then(result => {
+                if (result.transactionHashes) {
+                    document.getElementById("stake").innerText = "Staked";
+                } else {
+                    alert("Something went wrong: " + JSON.stringify(result))
+                    document.getElementById("stake").innerText = "Stake";
+                    document.getElementById("stake").disabled = false;
+                    document.getElementById("stake").style.backgroundColor = "#826f12";
+                    document.getElementById("stake").style.color = "rgb(238, 238, 236)";
+                    document.getElementById("stake").style.border = "1px solid white";
+                    document.getElementById("claim").style.display = "none";
+                }
+            }).catch(e => {
+                alert("Something went wrong: " + e)
+                document.getElementById("stake").innerText = "Stake";
+                document.getElementById("stake").disabled = false;
+                document.getElementById("stake").style.backgroundColor = "#826f12";
+                document.getElementById("stake").style.color = "rgb(238, 238, 236)";
+                document.getElementById("stake").style.border = "1px solid white";
+                document.getElementById("claim").style.display = "none";
+            })
+        }
+
+        function claim() {
+            document.getElementById("claim").disabled = true;
+            document.getElementById("claim").style.backgroundColor = "#624f00";
+            document.getElementById("claim").style.color = "#888888";
+            document.getElementById("claim").style.border = "1px solid #999999";
+            document.getElementById("claim").innerText = "Claiming ...";
+
+            nearCall([
+                {
+                    recipient: "nftstaking.jumpfinance.near",
+                    method: "claim_reward",
+                    params: {
+                        collection: {
+                            type: "NFTContract",
+                            account_id: "nearvember-nft.near",
+                        },
+                        token_id: [
+                            {
+                                type: "NFTContract",
+                                account_id: "nearvember-nft.near",
+                            },
+                            "{{TOKEN_ID}}"
+                        ]
+                    },
+                    deposit: "1",
+                },
+                {
+                    recipient: "nftstaking.jumpfinance.near",
+                    method: "withdraw_reward",
+                    params: {
+                        collection: {
+                            type: "NFTContract",
+                            account_id: "nearvember-nft.near",
+                        },
+                        token_id: "nearvember-337.meme-cooking.near"
+                    },
+                    deposit: "1",
+                }
+            ]).then(result => {
+                if (result.transactionHashes) {
+                    document.getElementById("claim").innerText = "Claimed";
+                    setTimeout(() => {
+                        document.getElementById("claim").disabled = false;
+                        document.getElementById("claim").style.backgroundColor = "#826f12";
+                        document.getElementById("claim").style.color = "rgb(238, 238, 236)";
+                        document.getElementById("claim").style.border = "1px solid white";
+                        document.getElementById("claim").innerText = "Claim";
+                    }, 3000)
+                } else {
+                    alert("Something went wrong: " + JSON.stringify(result))
+                    document.getElementById("claim").innerText = "Claim";
+                    document.getElementById("claim").disabled = false;
+                    document.getElementById("claim").style.backgroundColor = "#826f12";
+                    document.getElementById("claim").style.color = "rgb(238, 238, 236)";
+                    document.getElementById("claim").style.border = "1px solid white";
+                }
+            }).catch(e => {
+                alert("Something went wrong: " + e)
+                document.getElementById("claim").innerText = "Claim";
+                document.getElementById("claim").disabled = false;
+                document.getElementById("claim").style.backgroundColor = "#826f12";
+                document.getElementById("claim").style.color = "rgb(238, 238, 236)";
+                document.getElementById("claim").style.border = "1px solid white";
+            })
+        }
+    </script>
+</head>
+
+<body style="
+    background-color: rgb(11, 11, 10);
+    width: 100%;
+    margin: 0;
+">
+    <main style="
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        ">
+        <h1 style="color: rgb(181, 179, 173); font-size: 24px;">Your NEARvember NFT</h1>
+        <img src="{{IMAGE_URL}}" height="200px" style="border: 1px solid #826f12" />
+        <button id="stake" style="
+            min-width: 125px;
+            min-height: 50px;
+            color: rgb(238, 238, 236);
+            margin-top: 2em;
+            background-color: #826f12;
+            font-weight: bold;
+            font-size: 20px;
+            border-radius: 4px;
+            border: 1px solid white;
+        " onClick="stake()">
+            Stake
+        </button>
+        <button id="claim" style="
+            display: none;
+            min-width: 100px;
+            min-height: 40px;
+            color: rgb(238, 238, 236);
+            margin-top: 0.5em;
+            background-color: #826f12;
+            font-weight: bold;
+            font-size: 20px;
+            border-radius: 4px;
+            border: 1px solid white;
+        " onClick="claim()">
+            Claim
+        </button>
+        <p>
+            Staking powered by JumpDeFi
+        </p>
+    </main>
+</body>
+
+</html>

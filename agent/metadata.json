@@ -1,0 +1,23 @@
+{
+    "name": "nearvember-mint-agent",
+    "version": "69.0.1",
+    "description": "Mint your free NEARvember NFT",
+    "category": "agent",
+    "tags": ["nft", "memecoins"],
+    "details": {
+        "agent": {
+            "welcome": {
+                "title": "Mint a free NEARvember NFT",
+                "description": "This agent will help you mint your free NEARvember NFT. Tell me what to put on your NFT picture and I'll generate it for you!"
+            },
+            "defaults": {
+                "model": "llama-v3p1-405b-instruct-long",
+                "model_provider": "fireworks",
+                "model_temperature": 1.0,
+                "model_max_tokens": 16384
+            },
+            "framework": "base"
+        }
+    },
+    "show_entry": true
+}
