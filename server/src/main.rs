@@ -5,6 +5,7 @@ use near_api::{Account, Contract, NetworkConfig};
 use near_primitives::types::AccountId;
 use near_primitives::views::ExecutionStatusView;
 use near_token::NearToken;
+use rand::seq::SliceRandom;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -45,6 +46,31 @@ async fn generate(req: web::Json<GenerateRequest>, client: web::Data<Client>) ->
 
     let fal_key = env::var("FAL_KEY").expect("FAL_KEY must be set");
 
+    // (control, mask)
+    const TEMPLATES: &[(&str, &str)] = &[
+        (
+            "https://i.imgur.com/PFZAuFp.png",
+            "https://i.imgur.com/W3xGCR3.png",
+        ),
+        (
+            "https://i.imgur.com/ykJWS5v.png",
+            "https://i.imgur.com/yIEfHIR.png",
+        ),
+        (
+            "https://i.imgur.com/d8mCiqp.png",
+            "https://i.imgur.com/R7VRjMW.png",
+        ),
+        (
+            "https://i.imgur.com/yqMoRxG.png",
+            "https://i.imgur.com/J1sBXQE.png",
+        ),
+        (
+            "https://i.imgur.com/grqytCd.png",
+            "https://i.imgur.com/aY8WtSP.png",
+        ),
+    ];
+    let (control_image_url, mask_image_url) = TEMPLATES.choose(&mut rand::thread_rng()).unwrap();
+
     let response = client
         .post("https://fal.run/fal-ai/flux-general")
         .header("Authorization", format!("Key {}", fal_key))
@@ -57,9 +83,9 @@ async fn generate(req: web::Json<GenerateRequest>, client: web::Data<Client>) ->
                     "path": "https://huggingface.co/promeai/FLUX.1-controlnet-lineart-promeai/resolve/main/diffusion_pytorch_model.safetensors?download=true",
                     "config_url": "https://huggingface.co/promeai/FLUX.1-controlnet-lineart-promeai/resolve/main/config.json?download=true",
                     "end_percentage": 0.9,
-                    "mask_image_url": "https://i.imgur.com/oj9ha85.png",
+                    "mask_image_url": mask_image_url,
                     "start_percentage": 0,
-                    "control_image_url": "https://i.imgur.com/S8wOb4S.png",
+                    "control_image_url": control_image_url,
                     "conditioning_scale": 0.8
                 }
             ],

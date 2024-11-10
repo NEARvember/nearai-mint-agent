@@ -2832,6 +2832,7 @@ dependencies = [
  "near-api",
  "near-primitives",
  "near-token",
+ "rand",
  "reqwest",
  "serde",
  "serde_json",
